@@ -7,15 +7,35 @@
 //
 
 import UIKit
+import OAuthSwift
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-
+    var viewController: UIViewController?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        window = UIWindow(frame: UIScreen.main.bounds)
+        window?.makeKeyAndVisible()
+        
+        viewController = ViewController()
+        let navigationController = UINavigationController(rootViewController: viewController!)
+        window?.rootViewController = navigationController
+        
+        return true
+    }
+    
+    func application(_ app: UIApplication, open url: URL, options: [UIApplicationOpenURLOptionsKey : Any] = [:]) -> Bool {
+        if url.host == "oauth-callback" {
+            print(url)
+            if let vc = viewController as? ViewController {
+                vc.returnedURLWithParameters = url
+            }
+            
+            // OAuth2Swift.handle(url: url)
+        }
         return true
     }
 
