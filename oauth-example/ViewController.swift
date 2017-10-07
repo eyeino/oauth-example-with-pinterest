@@ -8,6 +8,7 @@
 
 import UIKit
 import OAuthSwift
+import Alamofire
 
 class ViewController: UIViewController {
     
@@ -32,18 +33,25 @@ class ViewController: UIViewController {
     
     open var oauth2Token: String? {
         didSet {
-            tokenLabel.text = self.oauth2Token
+            tokenLabel.text = self.oauth2Token!
         }
     }
     
-    let tokenLabel : UILabel = {
+    let tokenLabel: UILabel = {
        let label = UILabel()
         label.text = "Token"
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
-    lazy var pinterestButton : UIButton = {
+    let pinterestAccessTokenLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Access token"
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    lazy var pinterestButton: UIButton = {
        let button = UIButton()
         button.setTitle("Start Pinterest OAuth", for: .normal)
         button.setTitleColor(.blue, for: .normal)
@@ -52,7 +60,16 @@ class ViewController: UIViewController {
         return button
     }()
     
-    @objc fileprivate func handlePinterestAuthentication () {
+    lazy var pinterestTokenButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Get permanent token...", for: .normal)
+        button.setTitleColor(.red, for: .normal)
+        button.addTarget(self, action: #selector(handlePinterestToken), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    @objc fileprivate func handlePinterestAuthentication() {
         oauthswift = OAuth2Swift(
             consumerKey: DeveloperParameters.consumerKey,
             consumerSecret: DeveloperParameters.consumerSecret,
@@ -71,17 +88,51 @@ class ViewController: UIViewController {
                 print(error.localizedDescription)
         })
     }
+    
+    @objc fileprivate func handlePinterestToken() {
+        guard let code = oauth2Token else { return }
+        guard let accessToken = getPinterestAccessToken(accessCode: code) else { return }
+        
+        pinterestAccessTokenLabel.text = accessToken
+    }
+    
+    fileprivate func getPinterestAccessToken(accessCode: String) -> String? {
+        var text = String()
+        
+        var parameters = Alamofire.Parameters()
+        parameters["grant_type"] = "authorization_code"
+        parameters["client_id"] = DeveloperParameters.consumerKey
+        parameters["client_secret"] = DeveloperParameters.consumerSecret
+        parameters["code"] = accessCode
+        
+        Alamofire.request(DeveloperParameters.pinterestAccessTokenURL, method: .post, parameters: parameters, encoding: URLEncoding.default).response { response in
+            if let data = response.data, let utf8Text = String(data: data, encoding: .utf8) {
+                text = utf8Text
+            }
+        }
+        
+        return text
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
         view.addSubview(pinterestButton)
         view.addSubview(tokenLabel)
+        view.addSubview(pinterestTokenButton)
+        view.addSubview(pinterestAccessTokenLabel)
         
         pinterestButton.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         pinterestButton.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
         
         tokenLabel.topAnchor.constraint(equalTo: pinterestButton.bottomAnchor).isActive = true
         tokenLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        
+        pinterestTokenButton.anchor(top: pinterestButton.bottomAnchor, left: pinterestButton.leftAnchor, bottom: nil, right: pinterestButton.rightAnchor, paddingTop: 20, paddingLeft: 0, paddingBottom: 0, paddingRight: 0, width: 0, height: 30)
+        pinterestAccessTokenLabel.topAnchor.constraint(equalTo: pinterestTokenButton.bottomAnchor).isActive = true
+        pinterestAccessTokenLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
+        
+        
     }
     
     override func viewDidAppear(_ animated: Bool) {

@@ -35,7 +35,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
             
             // OAuth2Swift.handle(url: url)
-            // Does not work.
+            // Does not work. Thanks Obama!
         }
         return true
     }
