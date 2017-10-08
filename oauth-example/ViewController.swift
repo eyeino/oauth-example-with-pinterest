@@ -9,6 +9,7 @@
 import UIKit
 import OAuthSwift
 import Alamofire
+import SwiftyJSON
 
 class ViewController: UIViewController {
     
@@ -91,13 +92,21 @@ class ViewController: UIViewController {
     
     @objc fileprivate func handlePinterestToken() {
         guard let code = oauth2Token else { return }
-        guard let accessToken = getPinterestAccessToken(accessCode: code) else { return }
-        
-        pinterestAccessTokenLabel.text = accessToken
+        getPinterestAccessToken(accessCode: code, completion: { token in
+            if let token = token {
+                DispatchQueue.main.async {
+                    print(token)
+                    self.pinterestAccessTokenLabel.text = token
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.pinterestAccessTokenLabel.text = "Error"
+                }
+            }
+        })
     }
     
-    fileprivate func getPinterestAccessToken(accessCode: String) -> String? {
-        var text = String()
+    fileprivate func getPinterestAccessToken(accessCode: String, completion: @escaping (String?) -> Void) {
         
         var parameters = Alamofire.Parameters()
         parameters["grant_type"] = "authorization_code"
@@ -105,13 +114,20 @@ class ViewController: UIViewController {
         parameters["client_secret"] = DeveloperParameters.consumerSecret
         parameters["code"] = accessCode
         
-        Alamofire.request(DeveloperParameters.pinterestAccessTokenURL, method: .post, parameters: parameters, encoding: URLEncoding.default).response { response in
-            if let data = response.data, let utf8Text = String(data: data, encoding: .utf8) {
-                text = utf8Text
+        Alamofire.request(DeveloperParameters.pinterestAccessTokenURL, method: .post, parameters: parameters, encoding: URLEncoding.default).responseJSON { response in
+            switch response.result {
+            case .success:
+                guard let data = response.data else { return }
+                let json = JSON(data)
+                let token = json["access_token"].string
+                
+                DispatchQueue.main.async {
+                    self.pinterestAccessTokenLabel.text = token
+                }
+            case .failure:
+                print(response.error?.localizedDescription ?? "Unspecified error with response for access token request.")
             }
         }
-        
-        return text
     }
     
     override func viewDidLoad() {
@@ -128,11 +144,11 @@ class ViewController: UIViewController {
         tokenLabel.topAnchor.constraint(equalTo: pinterestButton.bottomAnchor).isActive = true
         tokenLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         
-        pinterestTokenButton.anchor(top: pinterestButton.bottomAnchor, left: pinterestButton.leftAnchor, bottom: nil, right: pinterestButton.rightAnchor, paddingTop: 20, paddingLeft: 0, paddingBottom: 0, paddingRight: 0, width: 0, height: 30)
+        pinterestTokenButton.topAnchor.constraint(equalTo: tokenLabel.bottomAnchor).isActive = true
+        pinterestTokenButton.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        
         pinterestAccessTokenLabel.topAnchor.constraint(equalTo: pinterestTokenButton.bottomAnchor).isActive = true
-        pinterestAccessTokenLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
-        
-        
+        pinterestAccessTokenLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
     }
     
     override func viewDidAppear(_ animated: Bool) {
