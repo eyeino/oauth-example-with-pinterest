@@ -91,22 +91,15 @@ class ViewController: UIViewController {
     }
     
     @objc fileprivate func handlePinterestToken() {
-        guard let code = oauth2Token else { return }
-        getPinterestAccessToken(accessCode: code, completion: { token in
-            if let token = token {
-                DispatchQueue.main.async {
-                    print(token)
-                    self.pinterestAccessTokenLabel.text = token
-                }
-            } else {
-                DispatchQueue.main.async {
-                    self.pinterestAccessTokenLabel.text = "Error"
-                }
-            }
-        })
+        guard let code = oauth2Token else {
+            print("No access code yet. Please request code from Pinterest first, before attempting to request token.")
+            return
+        }
+        
+        getPinterestAccessToken(accessCode: code)
     }
     
-    fileprivate func getPinterestAccessToken(accessCode: String, completion: @escaping (String?) -> Void) {
+    fileprivate func getPinterestAccessToken(accessCode: String) {
         
         var parameters = Alamofire.Parameters()
         parameters["grant_type"] = "authorization_code"
