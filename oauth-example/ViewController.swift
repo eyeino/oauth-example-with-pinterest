@@ -10,6 +10,7 @@ import UIKit
 import OAuthSwift
 import Alamofire
 import SwiftyJSON
+import Locksmith
 
 class ViewController: UIViewController {
     
@@ -112,10 +113,20 @@ class ViewController: UIViewController {
             case .success:
                 guard let data = response.data else { return }
                 let json = JSON(data)
-                let token = json["access_token"].string
+                guard let token = json["access_token"].string else { return }
                 
                 DispatchQueue.main.async {
                     self.pinterestAccessTokenLabel.text = token
+                    
+                    do {
+                        try Locksmith.saveData(data: ["pinterest_access_token": token], forUserAccount: "myUserAccount")
+                    } catch {
+                        print("Locksmith could not save the Pinterest access token.")
+                    }
+                    
+                    guard let dict = Locksmith.loadDataForUserAccount(userAccount: "myUserAccount") else { return }
+                    guard let pinterestAccessToken = dict["pinterest_access_token"] else { return }
+                    print("This is the token saved in the Keychain: \(pinterestAccessToken as? String)")
                 }
             case .failure:
                 print(response.error?.localizedDescription ?? "Unspecified error with response for access token request.")
