@@ -14,4 +14,6 @@ struct DeveloperParameters {
     public static let callbackURL = "https://protected-eyrie-88550.herokuapp.com/pinterest"
     
     public static let pinterestAccessTokenURL = "https://api.pinterest.com/v1/oauth/token"
+    
+    public static let pinterestFetchMyBoards = "https://api.pinterest.com/v1/me/pins/"
 }

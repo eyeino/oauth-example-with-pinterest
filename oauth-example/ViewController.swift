@@ -55,8 +55,9 @@ class ViewController: UIViewController {
     
     lazy var pinterestButton: UIButton = {
        let button = UIButton()
-        button.setTitle("Start Pinterest OAuth", for: .normal)
-        button.setTitleColor(.blue, for: .normal)
+        button.setTitle("Log in with Pinterest", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = UIColor.red
         button.addTarget(self, action: #selector(handlePinterestAuthentication), for: .touchUpInside)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -67,6 +68,27 @@ class ViewController: UIViewController {
         button.setTitle("Get permanent token...", for: .normal)
         button.setTitleColor(.red, for: .normal)
         button.addTarget(self, action: #selector(handlePinterestToken), for: .touchUpInside)
+        button.layer.cornerRadius = 5
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    lazy var pinterestBoardButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Get pinterest board JSON", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = UIColor.black
+        button.addTarget(self, action: #selector(getMyPinterestBoards), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    lazy var pinterestPinButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Get pinterest pins", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = UIColor.green
+        button.addTarget(self, action: #selector(getPinterestImageData), for: .touchUpInside)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
@@ -119,7 +141,8 @@ class ViewController: UIViewController {
                     self.pinterestAccessTokenLabel.text = token
                     
                     do {
-                        try Locksmith.saveData(data: ["pinterest_access_token": token], forUserAccount: "myUserAccount")
+                        // updateData creates a key-value pair if it does not exist
+                        try Locksmith.updateData(data: ["pinterest_access_token": token], forUserAccount: "myUserAccount")
                     } catch {
                         print("Locksmith could not save the Pinterest access token.")
                     }
@@ -134,6 +157,75 @@ class ViewController: UIViewController {
         }
     }
     
+    @objc fileprivate func getMyPinterestBoards() {
+        
+        var parameters = Alamofire.Parameters()
+        guard let dict = Locksmith.loadDataForUserAccount(userAccount: "myUserAccount") else { return }
+        guard let accessToken = dict["pinterest_access_token"] else { return }
+        parameters["access_token"] = accessToken
+        
+        Alamofire.request(DeveloperParameters.pinterestFetchMyBoards, method: .get, parameters: parameters, encoding: URLEncoding.default).responseJSON { response in
+            switch response.result {
+            case .success:
+                guard let data = response.data else { return }
+                let json = JSON(data)
+                print(json)
+                guard let pinId = json["data"][0]["id"].string else {
+                    return
+                }
+                
+                self.getPinterestImageData(for: pinId)
+            
+            case .failure:
+                print(response.error?.localizedDescription ?? "error in get board")
+            }
+        }
+    }
+    
+    @objc fileprivate func getPins(boardName: String, userName: String) {
+        
+        var parameters = Alamofire.Parameters()
+        guard let dict = Locksmith.loadDataForUserAccount(userAccount: "myUserAccount") else { return }
+        guard let accessToken = dict["pinterest_access_token"] else { return }
+        parameters["access_token"] = accessToken
+
+        let urlString = "https://api.pinterest.com/v1/boards/\(userName + "/" + boardName)/pins/"
+        
+        Alamofire.request(urlString, method: .get, parameters: parameters, encoding: URLEncoding.default).responseJSON { response in
+            switch response.result {
+            case .success:
+                guard let data = response.data else { return }
+                let json = JSON(data)
+                print("JSON data: \(json)")
+            case .failure:
+                print(response.error?.localizedDescription ?? "error in get board")
+            }
+        }
+    }
+    
+    @objc fileprivate func getPinterestImageData(for pinId: String) {
+        
+        var parameters = Alamofire.Parameters()
+        guard let dict = Locksmith.loadDataForUserAccount(userAccount: "myUserAccount") else { return }
+        guard let accessToken = dict["pinterest_access_token"] else { return }
+        parameters["access_token"] = accessToken
+        parameters["fields"] = "image"
+        
+        let urlString = "https://api.pinterest.com/v1/pins/\(pinId)"
+        
+        Alamofire.request(urlString, method: .get, parameters: parameters, encoding: URLEncoding.default).responseJSON { response in
+            switch response.result {
+            case .success:
+                guard let data = response.data else { return }
+                let json = JSON(data)
+                guard let imageURL = json["data"]["image"]["original"]["url"].string else { return }
+                print(imageURL)
+            case .failure:
+                print(response.error?.localizedDescription ?? "error in image getter" )
+            }
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
@@ -141,6 +233,7 @@ class ViewController: UIViewController {
         view.addSubview(tokenLabel)
         view.addSubview(pinterestTokenButton)
         view.addSubview(pinterestAccessTokenLabel)
+        view.addSubview(pinterestBoardButton)
         
         pinterestButton.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
         pinterestButton.centerYAnchor.constraint(equalTo: view.centerYAnchor).isActive = true
@@ -153,6 +246,11 @@ class ViewController: UIViewController {
         
         pinterestAccessTokenLabel.topAnchor.constraint(equalTo: pinterestTokenButton.bottomAnchor).isActive = true
         pinterestAccessTokenLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        
+        pinterestBoardButton.topAnchor.constraint(equalTo: pinterestAccessTokenLabel.bottomAnchor).isActive = true
+        pinterestBoardButton.centerXAnchor.constraint(equalTo: view.centerXAnchor).isActive = true
+        
+        
     }
     
     override func viewDidAppear(_ animated: Bool) {
